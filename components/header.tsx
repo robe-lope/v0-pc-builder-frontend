@@ -1,25 +1,94 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Cpu, Menu, User } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Cpu, Menu, User, Shield, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useBuildComponents } from "@/lib/store"
+import { createClient } from "@/lib/supabase/client"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 const navigation = [
   { name: "Inicio", href: "/" },
-  { name: "Catálogo", href: "/catalogo" },
-  { name: "Armá tu PC", href: "/build" },
+  { name: "Catalogo", href: "/catalogo" },
+  { name: "Arma tu PC", href: "/build" },
   { name: "Tiendas", href: "/tiendas" },
 ]
 
+interface UserProfile {
+  role: string
+  full_name: string | null
+}
+
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const components = useBuildComponents()
   const itemCount = components.filter((c) => c.product !== null).length
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      
+      if (user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("role, full_name")
+          .eq("id", user.id)
+          .single()
+        setProfile(profileData)
+      }
+      setIsLoading(false)
+    }
+
+    loadUser()
+
+    // Listen for auth changes
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null)
+        if (session?.user) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("role, full_name")
+            .eq("id", session.user.id)
+            .single()
+          setProfile(profileData)
+        } else {
+          setProfile(null)
+        }
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setUser(null)
+    setProfile(null)
+    router.push("/")
+  }
+
+  const isAdmin = profile?.role === "admin"
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,12 +129,68 @@ export function Header() {
               )}
             </Button>
           </Link>
-          <Link href="/perfil">
-            <Button variant="ghost" size="icon" className="h-9 w-9">
-              <User className="h-5 w-5" />
-              <span className="sr-only">Perfil</span>
-            </Button>
-          </Link>
+          
+          {!isLoading && (
+            <>
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                      <User className="h-5 w-5" />
+                      <span className="sr-only">Perfil</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <div className="px-2 py-1.5">
+                      <p className="text-sm font-medium">
+                        {profile?.full_name || "Usuario"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/perfil" className="cursor-pointer">
+                        <User className="h-4 w-4 mr-2" />
+                        Mi Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="cursor-pointer">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Admin Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Cerrar Sesion
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link href="/auth/login">
+                    <Button variant="ghost" size="sm">
+                      Ingresar
+                    </Button>
+                  </Link>
+                  <Link href="/auth/sign-up">
+                    <Button size="sm">
+                      Registrarse
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
+          
           <ThemeToggle />
 
           <Sheet>
