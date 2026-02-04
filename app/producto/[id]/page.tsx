@@ -13,8 +13,8 @@ import { mockProducts, mockStores } from "@/lib/mock-data"
 import { useBuildActions } from "@/lib/store"
 import { useToast } from "@/hooks/use-toast"
 
-export default function ProductoPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params)
+export default function ProductoPage({ params }: { params: { id: string } | Promise<{ id: string }> }) {
+  const resolvedParams = params instanceof Promise ? use(params) : params
   const router = useRouter()
   const { toast } = useToast()
   const { addComponent } = useBuildActions()
