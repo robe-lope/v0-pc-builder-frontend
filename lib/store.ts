@@ -1,3 +1,6 @@
+'use client';
+
+import { useMemo } from "react"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import type { BuildComponent, Product, CompatibilityWarning, ComponentCategory } from "./types"
@@ -119,17 +122,27 @@ export const useBuildStore = create<BuildState>()(
 // Selector hooks for better performance
 export const useBuildComponents = () => useBuildStore((state) => state.components)
 export const useBuildWarnings = () => useBuildStore((state) => state.warnings)
-export const useBuildActions = () =>
-  useBuildStore((state) => ({
-    addComponent: state.addComponent,
-    removeComponent: state.removeComponent,
-    updateQuantity: state.updateQuantity,
-    clearBuild: state.clearBuild,
-    loadBuild: state.loadBuild,
-  }))
 
-// Helper to calculate build totals
+// Use shallow equality for action selectors to avoid creating new objects
+export const useBuildActions = () => {
+  const addComponent = useBuildStore((state) => state.addComponent)
+  const removeComponent = useBuildStore((state) => state.removeComponent)
+  const updateQuantity = useBuildStore((state) => state.updateQuantity)
+  const clearBuild = useBuildStore((state) => state.clearBuild)
+  const loadBuild = useBuildStore((state) => state.loadBuild)
+  
+  return useMemo(() => ({ 
+    addComponent, 
+    removeComponent, 
+    updateQuantity, 
+    clearBuild, 
+    loadBuild 
+  }), [addComponent, removeComponent, updateQuantity, clearBuild, loadBuild])
+}
+
+// Helper to calculate build totals - memoized to prevent infinite loops
 export const useBuildTotals = () => {
-  const components = useBuildComponents()
-  return calculateBuildPrice(components)
+  const components = useBuildStore((state) => state.components)
+  
+  return useMemo(() => calculateBuildPrice(components), [components])
 }
