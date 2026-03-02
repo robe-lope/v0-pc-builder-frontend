@@ -2,10 +2,12 @@ import { MapPin, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { mockStores } from "@/lib/mock-data"
+import { getStores } from "@/lib/supabase/queries"
 import Link from "next/link"
 
-export default function TiendasPage() {
+export default async function TiendasPage() {
+  const stores = await getStores()
+
   return (
     <div className="container py-8">
       <div className="mb-8">
@@ -14,7 +16,7 @@ export default function TiendasPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {mockStores.map((store) => (
+        {stores.map((store) => (
           <Card key={store.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">

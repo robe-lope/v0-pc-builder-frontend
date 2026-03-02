@@ -1,13 +1,21 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Cpu, Menu, User } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Cpu, Menu, User, LogOut, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useBuildComponents } from "@/lib/store"
+import { useAuth } from "@/hooks/use-auth"
 
 const navigation = [
   { name: "Inicio", href: "/" },
@@ -18,8 +26,18 @@ const navigation = [
 
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const components = useBuildComponents()
   const itemCount = components.filter((c) => c.product !== null).length
+  const { user, loading, signOut } = useAuth()
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push("/")
+    router.refresh()
+  }
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario"
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,12 +78,38 @@ export function Header() {
               )}
             </Button>
           </Link>
-          <Link href="/perfil">
-            <Button variant="ghost" size="icon" className="h-9 w-9">
-              <User className="h-5 w-5" />
-              <span className="sr-only">Perfil</span>
-            </Button>
-          </Link>
+
+          {!loading && (
+            user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1">
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline max-w-[120px] truncate">{displayName}</span>
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/perfil">Mi perfil</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link href="/auth/login">
+                <Button variant="ghost" size="sm">
+                  <User className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Iniciar sesión</span>
+                </Button>
+              </Link>
+            )
+          )}
+
           <ThemeToggle />
 
           <Sheet>

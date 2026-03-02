@@ -47,6 +47,7 @@ export interface BuildComponent {
 export interface Build {
   id: string
   name: string
+  userId?: string
   components: BuildComponent[]
   createdAt: Date
 }

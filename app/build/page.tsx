@@ -1,17 +1,30 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Plus, Trash2, AlertTriangle, AlertCircle, Info, Share2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useBuildComponents, useBuildWarnings, useBuildActions, useBuildTotals } from "@/lib/store"
-import { mockStores } from "@/lib/mock-data"
-import type { ComponentCategory } from "@/lib/types"
+import type { ComponentCategory, Store } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { createClient } from "@/lib/supabase/client"
+import { saveBuild } from "@/lib/supabase/mutations"
 
 const categoryLabels: Record<ComponentCategory, string> = {
   cpu: "Procesador",
@@ -26,41 +39,64 @@ const categoryLabels: Record<ComponentCategory, string> = {
 }
 
 const categoryOrder: ComponentCategory[] = [
-  "cpu",
-  "motherboard",
-  "gpu",
-  "ram",
-  "storage",
-  "psu",
-  "case",
-  "cooler",
-  "other",
+  "cpu", "motherboard", "gpu", "ram", "storage", "psu", "case", "cooler", "other",
 ]
 
 export default function BuildPage() {
+  const router = useRouter()
   const components = useBuildComponents()
   const warnings = useBuildWarnings()
   const { removeComponent, clearBuild } = useBuildActions()
   const { totalsByStore, grandTotal, bestPricePerComponent } = useBuildTotals()
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  const [stores, setStores] = useState<Store[]>([])
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [buildName, setBuildName] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from("stores").select("id, name, location, logo").then(({ data }) => {
+      if (data) setStores(data.map((s) => ({ ...s, logo: s.logo ?? undefined })))
+    })
+  }, [])
 
   const handleShare = () => {
-    toast({
-      title: "Compartir build",
-      description: "Esta función estará disponible próximamente",
-    })
+    toast({ title: "Compartir build", description: "Esta función estará disponible próximamente" })
   }
 
-  const handleSave = () => {
-    toast({
-      title: "Build guardado",
-      description: "Tu build se guardó correctamente",
-    })
+  const handleSaveClick = () => {
+    if (!user) {
+      toast({
+        title: "Iniciá sesión para guardar",
+        description: "Necesitás una cuenta para guardar builds",
+      })
+      router.push("/auth/login")
+      return
+    }
+    setSaveDialogOpen(true)
+  }
+
+  const handleSaveConfirm = async () => {
+    if (!user || !buildName.trim()) return
+    setSaving(true)
+    try {
+      await saveBuild(buildName.trim(), user.id, components)
+      setSaveDialogOpen(false)
+      setBuildName("")
+      toast({ title: "Build guardado", description: `"${buildName.trim()}" se guardó correctamente` })
+      router.push("/perfil")
+    } catch {
+      toast({ title: "Error al guardar", description: "Ocurrió un error. Intentá de nuevo.", variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const hasComponents = components.some((c) => c.product !== null)
 
-  // Group components by category, respecting the order
   const orderedComponents = categoryOrder.map((category) => {
     const matches = components.filter((c) => c.category === category)
     return matches.length > 0 ? matches : [{ category, product: null, quantity: 0 }]
@@ -78,7 +114,7 @@ export default function BuildPage() {
             <Share2 className="h-4 w-4 mr-2" />
             Compartir
           </Button>
-          <Button variant="outline" onClick={handleSave}>
+          <Button variant="outline" onClick={handleSaveClick}>
             <Save className="h-4 w-4 mr-2" />
             Guardar
           </Button>
@@ -91,7 +127,6 @@ export default function BuildPage() {
         </div>
       </div>
 
-      {/* Warnings */}
       {warnings.length > 0 && (
         <div className="mb-6 space-y-3">
           {warnings.map((warning, index) => (
@@ -104,7 +139,6 @@ export default function BuildPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Components List */}
         <div className="lg:col-span-2 space-y-4">
           {orderedComponents.map((componentGroup, groupIndex) => {
             const firstComponent = componentGroup[0]
@@ -128,16 +162,14 @@ export default function BuildPage() {
                               </div>
                               <p className="text-muted-foreground">Seleccionar {label.toLowerCase()}</p>
                             </div>
-                            <Button variant="ghost" size="sm">
-                              Agregar
-                            </Button>
+                            <Button variant="ghost" size="sm">Agregar</Button>
                           </div>
                         </Link>
                       )
                     }
 
                     const bestPrice = bestPricePerComponent[component.product.id]
-                    const store = bestPrice ? mockStores.find((s) => s.id === bestPrice.storeId) : null
+                    const store = bestPrice ? stores.find((s) => s.id === bestPrice.storeId) : null
 
                     return (
                       <div
@@ -165,9 +197,7 @@ export default function BuildPage() {
                                 <p className="text-lg font-bold text-primary">
                                   ${bestPrice.price.toLocaleString("es-AR")}
                                 </p>
-                                <Badge variant="secondary" className="text-xs">
-                                  {store.name}
-                                </Badge>
+                                <Badge variant="secondary" className="text-xs">{store.name}</Badge>
                               </div>
                             )}
                             {component.quantity > 1 && (
@@ -193,7 +223,6 @@ export default function BuildPage() {
           })}
         </div>
 
-        {/* Summary */}
         <div className="lg:col-span-1">
           <div className="sticky top-24 space-y-4">
             <Card>
@@ -208,7 +237,7 @@ export default function BuildPage() {
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-muted-foreground mb-3">Por tienda</p>
                           {Object.entries(totalsByStore).map(([storeId, total]) => {
-                            const store = mockStores.find((s) => s.id === storeId)
+                            const store = stores.find((s) => s.id === storeId)
                             if (!store) return null
                             return (
                               <div key={storeId} className="flex justify-between items-center">
@@ -218,7 +247,6 @@ export default function BuildPage() {
                             )
                           })}
                         </div>
-
                         <Separator />
                       </>
                     )}
@@ -274,6 +302,30 @@ export default function BuildPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Guardar build</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="build-name">Nombre del build</Label>
+            <Input
+              id="build-name"
+              placeholder="Mi PC Gaming 2025"
+              value={buildName}
+              onChange={(e) => setBuildName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveConfirm() }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveConfirm} disabled={!buildName.trim() || saving}>
+              {saving ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
