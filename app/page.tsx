@@ -69,8 +69,16 @@ export default function HomePage() {
                 placeholder="Buscar componentes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-14 pl-12 pr-4 text-base"
+                className="h-14 pl-12 pr-32 text-base"
               />
+              <Button
+                type="submit"
+                size="sm"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-4"
+                disabled={!searchQuery.trim()}
+              >
+                Buscar
+              </Button>
             </div>
             <div className="mt-4 flex gap-3 justify-center">
               <Link href="/catalogo">

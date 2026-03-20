@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -49,6 +49,10 @@ export function CatalogContent({ initialProducts, initialStores }: CatalogConten
 
   const [searchQuery, setSearchQuery] = useState(initialQuery)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategory ? [initialCategory] : [])
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get("q") || "")
+  }, [searchParams])
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [selectedStores, setSelectedStores] = useState<string[]>([])
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000000])
