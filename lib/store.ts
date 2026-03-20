@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { useShallow } from "zustand/react/shallow"
 import type { BuildComponent, Product, CompatibilityWarning, ComponentCategory } from "./types"
 import { checkCompatibility, calculateBuildPrice } from "./compatibility"
 
@@ -120,13 +121,15 @@ export const useBuildStore = create<BuildState>()(
 export const useBuildComponents = () => useBuildStore((state) => state.components)
 export const useBuildWarnings = () => useBuildStore((state) => state.warnings)
 export const useBuildActions = () =>
-  useBuildStore((state) => ({
-    addComponent: state.addComponent,
-    removeComponent: state.removeComponent,
-    updateQuantity: state.updateQuantity,
-    clearBuild: state.clearBuild,
-    loadBuild: state.loadBuild,
-  }))
+  useBuildStore(
+    useShallow((state) => ({
+      addComponent: state.addComponent,
+      removeComponent: state.removeComponent,
+      updateQuantity: state.updateQuantity,
+      clearBuild: state.clearBuild,
+      loadBuild: state.loadBuild,
+    }))
+  )
 
 // Helper to calculate build totals
 export const useBuildTotals = () => {

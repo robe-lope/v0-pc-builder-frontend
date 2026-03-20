@@ -14,6 +14,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import type { Product, Store, ComponentCategory } from "@/lib/types"
 
+const categoryKeywords: Record<string, ComponentCategory> = {
+  ram: 'ram', memoria: 'ram', ddr4: 'ram', ddr5: 'ram',
+  cpu: 'cpu', procesador: 'cpu', ryzen: 'cpu',
+  gpu: 'gpu', 'placa de video': 'gpu', rtx: 'gpu', radeon: 'gpu', geforce: 'gpu', rx: 'gpu',
+  motherboard: 'motherboard', mother: 'motherboard', 'placa madre': 'motherboard',
+  ssd: 'storage', hdd: 'storage', nvme: 'storage', disco: 'storage',
+  fuente: 'psu', psu: 'psu',
+  gabinete: 'case', case: 'case', torre: 'case',
+  cooler: 'cooler', disipador: 'cooler',
+}
+
 const categoryLabels: Record<ComponentCategory, string> = {
   cpu: "Procesadores",
   motherboard: "Motherboards",
@@ -49,11 +60,51 @@ export function CatalogContent({ initialProducts, initialStores }: CatalogConten
   }, [initialProducts])
 
   const filteredProducts = useMemo(() => {
-    const filtered = initialProducts.filter((product) => {
-      if (selectedCategories.length > 0 && !selectedCategories.includes(product.category)) return false
-      if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false
-      if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
+    const query = searchQuery.toLowerCase().trim()
 
+    // Detect if query maps to a category keyword (only auto-filter if no manual categories selected)
+    let autoCategory: ComponentCategory | null = null
+    if (query && selectedCategories.length === 0) {
+      // Check full query first, then individual words, then prefix match
+      if (categoryKeywords[query]) {
+        autoCategory = categoryKeywords[query]
+      } else {
+        for (const word of query.split(/\s+/)) {
+          if (categoryKeywords[word]) {
+            autoCategory = categoryKeywords[word]
+            break
+          }
+        }
+      }
+      // Paso 3: prefix match (mínimo 3 chars)
+      if (!autoCategory) {
+        for (const word of query.split(/\s+/)) {
+          if (word.length >= 3) {
+            const matchedKey = Object.keys(categoryKeywords).find(k => k.startsWith(word))
+            if (matchedKey) {
+              autoCategory = categoryKeywords[matchedKey]
+              break
+            }
+          }
+        }
+      }
+    }
+
+    const filtered = initialProducts.filter((product) => {
+      const activeCategories = autoCategory ? [autoCategory] : selectedCategories
+      if (activeCategories.length > 0 && !activeCategories.includes(product.category)) return false
+      if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false
+      // Strip keywords that triggered autoCategory so e.g. "cooler" doesn't need to match the product name
+      const textQuery = autoCategory
+        ? query.split(/\s+/).filter((w) => {
+            if (categoryKeywords[w]) return false
+            if (w.length >= 3 && Object.keys(categoryKeywords).some(k => k.startsWith(w))) return false
+            return true
+          }).join(' ')
+        : query
+      if (textQuery && !(product.name + ' ' + product.brand).toLowerCase().includes(textQuery)) return false
+
+      if (product.prices.length === 0) return false
       const lowestPrice = Math.min(...product.prices.map((p) => p.price))
       if (lowestPrice < priceRange[0] || lowestPrice > priceRange[1]) return false
 
@@ -101,7 +152,7 @@ export function CatalogContent({ initialProducts, initialStores }: CatalogConten
     setSearchQuery("")
   }
 
-  const FilterSection = () => (
+  const filterSectionJSX = (
     <div className="space-y-6">
       <div>
         <Label className="text-base font-semibold mb-3 block">Búsqueda</Label>
@@ -183,7 +234,7 @@ export function CatalogContent({ initialProducts, initialStores }: CatalogConten
                   <Filter className="h-5 w-5" />
                   <h2 className="font-semibold">Filtros</h2>
                 </div>
-                <FilterSection />
+                {filterSectionJSX}
               </CardContent>
             </Card>
           </div>
@@ -203,7 +254,7 @@ export function CatalogContent({ initialProducts, initialStores }: CatalogConten
                   <SheetTitle>Filtros</SheetTitle>
                 </SheetHeader>
                 <div className="mt-6">
-                  <FilterSection />
+                  {filterSectionJSX}
                 </div>
               </SheetContent>
             </Sheet>

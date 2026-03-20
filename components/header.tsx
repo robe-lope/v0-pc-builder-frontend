@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Cpu, Menu, User, LogOut, ChevronDown } from "lucide-react"
+import { Cpu, Menu, User, LogOut, ChevronDown, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -29,7 +29,7 @@ export function Header() {
   const router = useRouter()
   const components = useBuildComponents()
   const itemCount = components.filter((c) => c.product !== null).length
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut, isAdmin } = useAuth()
 
   const handleSignOut = async () => {
     await signOut()
@@ -93,6 +93,17 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <Link href="/perfil">Mi perfil</Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin">
+                          <ShieldCheck className="h-4 w-4 mr-2" />
+                          Admin Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
                     <LogOut className="h-4 w-4 mr-2" />

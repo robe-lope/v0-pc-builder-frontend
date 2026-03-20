@@ -1,5 +1,7 @@
 // Core types for the PC Builder app
 
+export type UserRole = 'user' | 'admin'
+
 export type ComponentCategory = "cpu" | "motherboard" | "gpu" | "ram" | "storage" | "psu" | "case" | "cooler" | "other"
 
 export type SocketType = "AM4" | "AM5" | "LGA1700" | "LGA1200"
